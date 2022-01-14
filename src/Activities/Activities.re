@@ -53,6 +53,10 @@ let editButtonStyle =
 
 let inputStyle = ReactDOMRe.Style.make(~margin="12px", ());
 
+type activityKind =
+  | Showing
+  | Editing;
+
 [@react.component]
 let make =
     (
@@ -62,72 +66,75 @@ let make =
          (~todoId: string, ~editedTitle: string, ~editedDescription: string) =>
          unit,
     ) => {
-  let (isEditing, setIsEditing) = React.useState(() => false);
+  let (kind, setKind) = React.useState(() => Showing);
   let (activityValue, setActivityValue) = React.useState(() => "");
   let (descriptionValue, setDescriptionValue) = React.useState(() => "");
 
   <div style=containerStyle key={todosData.id}>
-    {isEditing
-       ? <>
-           <div style=grupInputStyle>
-             <input
-               value=activityValue
-               style=inputStyle
-               onChange={event => {
-                 let value = event->ReactEvent.Form.target##value;
-                 setActivityValue(value);
-               }}
-             />
-             <input
-               value=descriptionValue
-               style=inputStyle
-               onChange={event => {
-                 let value = event->ReactEvent.Form.target##value;
-                 setDescriptionValue(value);
-               }}
-             />
-           </div>
-           <div style=buttonGroupStyle>
-             <button
-               style=editButtonStyle
-               onClick={_ => {
-                 onEditTodos(
-                   ~todoId=todosData.id,
-                   ~editedTitle=activityValue,
-                   ~editedDescription=descriptionValue,
-                 );
-                 setIsEditing(_ => false);
-               }}>
-               {React.string("Submit")}
-             </button>
-             <button
-               style=deleteButtonStyle
-               onClick={_event => onDeleteTodos(todosData.id)}>
-               {React.string("Delete")}
-             </button>
-           </div>
-         </>
-       : <>
-           <div>
-             <h2> {React.string(todosData.title)} </h2>
-             <p> {React.string(todosData.description)} </p>
-           </div>
-           <div style=buttonGroupStyle>
-             <button
-               style=editButtonStyle
-               onClick={_ => {
-                 setIsEditing(_ => true);
-                 setDescriptionValue(_ => todosData.description);
-                 setActivityValue(_ => todosData.title);
-               }}>
-               {React.string("Edit")}
-             </button>
-             <button
-               style=deleteButtonStyle
-               onClick={_event => onDeleteTodos(todosData.id)}>
-               {React.string("Delete")}
-             </button>
-           </div>
-         </>}
+    {switch (kind) {
+     | Showing =>
+       <>
+         <div>
+           <h2> {React.string(todosData.title)} </h2>
+           <p> {React.string(todosData.description)} </p>
+         </div>
+         <div style=buttonGroupStyle>
+           <button
+             style=editButtonStyle
+             onClick={_ => {
+               setKind(_ => Editing);
+               setDescriptionValue(_ => todosData.description);
+               setActivityValue(_ => todosData.title);
+             }}>
+             {React.string("Edit")}
+           </button>
+           <button
+             style=deleteButtonStyle
+             onClick={_event => onDeleteTodos(todosData.id)}>
+             {React.string("Delete")}
+           </button>
+         </div>
+       </>
+     | Editing =>
+       <>
+         <div style=grupInputStyle>
+           <input
+             value=activityValue
+             style=inputStyle
+             onChange={event => {
+               let value = event->ReactEvent.Form.target##value;
+               setActivityValue(value);
+             }}
+           />
+           <input
+             value=descriptionValue
+             style=inputStyle
+             onChange={event => {
+               let value = event->ReactEvent.Form.target##value;
+               setDescriptionValue(value);
+             }}
+           />
+         </div>
+         <div style=buttonGroupStyle>
+           <button
+             style=editButtonStyle
+             onClick={_ => {
+               onEditTodos(
+                 ~todoId=todosData.id,
+                 ~editedTitle=activityValue,
+                 ~editedDescription=descriptionValue,
+               );
+               setKind(_ => Showing);
+             }}>
+             {React.string("Submit")}
+           </button>
+           <button
+             style=deleteButtonStyle
+             onClick={_event => onDeleteTodos(todosData.id)}>
+             {React.string("Delete")}
+           </button>
+         </div>
+       </>
+     }}
   </div>;
 };
