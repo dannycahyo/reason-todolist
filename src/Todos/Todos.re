@@ -1,11 +1,5 @@
 [@bs.val] external fetch: string => Js.Promise.t('a) = "fetch";
 
-type state =
-  | LoadingTodos
-  | ErrorFetchingTodos
-  | LoadedTodos(array(Activities.todosRecord))
-  | EmptyTodos;
-
 let containerStyle =
   ReactDOMRe.Style.make(
     ~display="flex",
