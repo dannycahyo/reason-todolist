@@ -49,9 +49,9 @@ function Activities(Props) {
   var onDeleteTodos = Props.onDeleteTodos;
   var onEditTodos = Props.onEditTodos;
   var match = React.useState(function () {
-        return false;
+        return /* Showing */0;
       });
-  var setIsEditing = match[1];
+  var setKind = match[1];
   var match$1 = React.useState(function () {
         return "";
       });
@@ -85,8 +85,8 @@ function Activities(Props) {
                             style: editButtonStyle,
                             onClick: (function (param) {
                                 Curry._3(onEditTodos, todosData.id, activityValue, descriptionValue);
-                                return Curry._1(setIsEditing, (function (param) {
-                                              return false;
+                                return Curry._1(setKind, (function (param) {
+                                              return /* Showing */0;
                                             }));
                               })
                           }, "Submit"), React.createElement("button", {
@@ -99,8 +99,8 @@ function Activities(Props) {
                       }, React.createElement("button", {
                             style: editButtonStyle,
                             onClick: (function (param) {
-                                Curry._1(setIsEditing, (function (param) {
-                                        return true;
+                                Curry._1(setKind, (function (param) {
+                                        return /* Editing */1;
                                       }));
                                 Curry._1(setDescriptionValue, (function (param) {
                                         return todosData.description;

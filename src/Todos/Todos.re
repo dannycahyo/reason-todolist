@@ -1,10 +1,39 @@
 [@bs.val] external fetch: string => Js.Promise.t('a) = "fetch";
 
-type state =
+type fetchingState =
+  | Initial
   | LoadingTodos
   | ErrorFetchingTodos
   | LoadedTodos(array(Activities.todosRecord))
   | EmptyTodos;
+
+type action =
+  | Fetch
+  | FetchSuccess
+  | FetchError
+  | FetchEmpty;
+
+let makeState = (state: fetchingState, action: action) => {
+  switch (state) {
+  | Initial =>
+    switch (action) {
+    | Fetch => LoadingTodos
+    | FetchSuccess
+    | FetchError
+    | FetchEmpty => state
+    }
+  | LoadingTodos =>
+    switch (action) {
+    | Fetch => state
+    | FetchSuccess => LoadedTodos([||])
+    | FetchError => ErrorFetchingTodos
+    | FetchEmpty => EmptyTodos
+    }
+  | ErrorFetchingTodos => state
+  | LoadedTodos(_) => state
+  | EmptyTodos => state
+  };
+};
 
 let containerStyle =
   ReactDOMRe.Style.make(
@@ -25,28 +54,25 @@ let addActivityButton =
 
 [@react.component]
 let make = () => {
-  let (dataTodos, setDataTodos) = React.useState(() => [||]);
-  let (loading, setLoading) = React.useState(() => false);
-  let (error, setError) = React.useState(() => false);
+  let (fetchingState, setFetchingState) = React.useState(() => Initial);
 
   let (activityValue, setActivityValue) = React.useState(() => "");
   let (descriptionValue, setDescriptionValue) = React.useState(() => "");
 
   React.useEffect0(() => {
-    setLoading(_ => true);
-    setError(_ => false);
+    setFetchingState(state => makeState(state, Fetch));
     Js.Promise.(
       fetch("http://localhost:3000/todos")
       |> then_(response => response##json())
       |> then_(jsonResponse => {
-           setDataTodos(_prevTodos => jsonResponse);
-           setLoading(_ => false);
+           setFetchingState(_prevTodos =>
+             jsonResponse->Js.Array2.length > 0
+               ? LoadedTodos(jsonResponse) : EmptyTodos
+           );
            Js.Promise.resolve();
          })
       |> catch(_ => {
-           setError(_ => true);
-           setDataTodos(_prevTodos => [||]);
-           setLoading(_ => false);
+           setFetchingState(_ => ErrorFetchingTodos);
            Js.Promise.resolve();
          })
       |> ignore
@@ -55,12 +81,12 @@ let make = () => {
     None;
   });
 
-  let handleAddTodo = () => {
+  let handleAddTodo = dataTodos => {
     let newTodo = Js.Dict.empty();
     Js.Dict.set(
       newTodo,
       "id",
-      Js.Json.string(string_of_float(Js.Math.random())),
+      Js.Json.string(Js.Float.toString(Js.Math.random())),
     );
     Js.Dict.set(newTodo, "title", Js.Json.string(activityValue));
     Js.Dict.set(newTodo, "description", Js.Json.string(descriptionValue));
@@ -90,13 +116,13 @@ let make = () => {
     };
     let updatedTodos: array(Activities.todosRecord) =
       Array.append(dataTodos, [|newTodo2|]);
-    setDataTodos(_ => updatedTodos);
+    setFetchingState(_ => LoadedTodos(updatedTodos));
 
     setActivityValue(_ => "");
     setDescriptionValue(_ => "");
   };
 
-  let handleDeleteTodo = (id: string) => {
+  let handleDeleteTodo = (dataTodos, id: string) => {
     Js.Promise.(
       Fetch.fetchWithInit(
         "http://localhost:3000/todos/" ++ id,
@@ -106,12 +132,14 @@ let make = () => {
       |> ignore
     );
 
-    let updatedTodo: array(Activities.todosRecord) =
-      dataTodos->Js.Array2.filter(todo => todo.id !== id);
-    setDataTodos(_prevTodos => updatedTodo);
+    let updatedTodos: array(Activities.todosRecord) =
+      dataTodos->Js.Array2.filter((todo: Activities.todosRecord) =>
+        todo.id !== id
+      );
+    setFetchingState(_ => LoadedTodos(updatedTodos));
   };
 
-  let handleEditTodo = (~todoId, ~editedTitle, ~editedDescription) => {
+  let handleEditTodo = (~dataTodos, ~todoId, ~editedTitle, ~editedDescription) => {
     let updatedTodoJson = Js.Dict.empty();
     Js.Dict.set(updatedTodoJson, "id", Js.Json.string(todoId));
     Js.Dict.set(updatedTodoJson, "title", Js.Json.string(editedTitle));
@@ -140,7 +168,9 @@ let make = () => {
     );
 
     let currentIndex =
-      dataTodos->Js.Array2.findIndex(todo => todo.id === todoId);
+      dataTodos->Js.Array2.findIndex((todo: Activities.todosRecord) =>
+        todo.id === todoId
+      );
 
     let updatedTodo: Activities.todosRecord = {
       id: todoId,
@@ -152,50 +182,69 @@ let make = () => {
       Array.append([||], dataTodos);
     updatedTodos[currentIndex] = updatedTodo;
 
-    setDataTodos(_prevTodos => updatedTodos);
+    setFetchingState(_ => LoadedTodos(updatedTodos));
   };
 
   <div>
-    <div style=containerStyle>
-      <input
-        type_="text"
-        placeholder="What are you doing?"
-        value=activityValue
-        onChange={event => {
-          // let value = ReactEvent.Form.target(event)##value;
-          let value = event->ReactEvent.Form.target##value;
-          setActivityValue(_ => value);
-        }}
-      />
-      <input
-        type_="text"
-        placeholder="Be detail please!!!"
-        value=descriptionValue
-        onChange={event => {
-          let value = ReactEvent.Form.target(event)##value;
-          setDescriptionValue(_ => value);
-        }}
-      />
-      <button style=addActivityButton onClick={_event => handleAddTodo()}>
-        {React.string("Add activity")}
-      </button>
-    </div>
     <div>
-      {error ? React.string("An Error Occured!") : React.null}
-      {loading ? React.string("Loading ....") : React.null}
-      {dataTodos->Js.Array2.length > 0
-         ? dataTodos
-           ->Js.Array2.filter(_todo => true)
-           ->Belt.Array.map(todo => {
-               <Activities
-                 todosData=todo
-                 key={todo.id}
-                 onDeleteTodos=handleDeleteTodo
-                 onEditTodos=handleEditTodo
-               />
-             })
-           ->React.array
-         : React.string("There is no activity yet")}
+      {switch (fetchingState) {
+       | Initial
+       | LoadingTodos => React.string("Loading ....")
+       | EmptyTodos =>
+         <button onClick={_ => setFetchingState(_ => LoadedTodos([||]))} />
+       | LoadedTodos(dataTodos) =>
+         <>
+           <div style=containerStyle>
+             <input
+               type_="text"
+               placeholder="What are you doing?"
+               value=activityValue
+               onChange={event => {
+                 // let value = ReactEvent.Form.target(event)##value;
+                 let value = event->ReactEvent.Form.target##value;
+                 setActivityValue(_ => value);
+               }}
+             />
+             <input
+               type_="text"
+               placeholder="Be detail please!!!"
+               value=descriptionValue
+               onChange={event => {
+                 let value = ReactEvent.Form.target(event)##value;
+                 setDescriptionValue(_ => value);
+               }}
+             />
+             <button
+               style=addActivityButton
+               onClick={_event => handleAddTodo(dataTodos)}>
+               {React.string("Add activity")}
+             </button>
+           </div>
+           {dataTodos
+            ->Js.Array2.filter(_todo => true)
+            ->Belt.Array.map(todo => {
+                <Activities
+                  todosData=todo
+                  key={todo.id}
+                  onDeleteTodos={id => handleDeleteTodo(dataTodos, id)}
+                  onEditTodos={(
+                    ~todoId: string,
+                    ~editedTitle: string,
+                    ~editedDescription: string,
+                  ) =>
+                    handleEditTodo(
+                      ~todoId,
+                      ~editedTitle,
+                      ~editedDescription,
+                      ~dataTodos,
+                    )
+                  }
+                />
+              })
+            ->React.array}
+         </>
+       | ErrorFetchingTodos => React.string("An Error Occured!")
+       }}
     </div>
   </div>;
 };
