@@ -71,19 +71,19 @@ function Todos(Props) {
           fetch("http://localhost:3000/todos").then(function (response) {
                     return response.json();
                   }).then(function (jsonResponse) {
-                  Curry._1(setFetchingState, (function (_prevTodos) {
+                  Curry._1(setFetchingState, (function (state) {
                           if (jsonResponse.length > 0) {
                             return /* LoadedTodos */{
                                     _0: jsonResponse
                                   };
                           } else {
-                            return /* EmptyTodos */3;
+                            return makeState(state, /* FetchEmpty */3);
                           }
                         }));
                   return Promise.resolve(undefined);
                 }).catch(function (param) {
-                Curry._1(setFetchingState, (function (param) {
-                        return /* ErrorFetchingTodos */2;
+                Curry._1(setFetchingState, (function (state) {
+                        return makeState(state, /* FetchError */2);
                       }));
                 return Promise.resolve(undefined);
               });
@@ -134,9 +134,16 @@ function Todos(Props) {
                       newTodo["title"] = activityValue;
                       newTodo["description"] = descriptionValue;
                       fetch("http://localhost:3000/todos", Fetch.RequestInit.make(/* Post */2, {
-                                    "Content-Type": "application/json"
-                                  }, Caml_option.some(JSON.stringify(newTodo)), undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined)(undefined)).then(function (prim) {
-                            return prim.json();
+                                        "Content-Type": "application/json"
+                                      }, Caml_option.some(JSON.stringify(newTodo)), undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined)(undefined)).then(function (prim) {
+                                return prim.json();
+                              }).then(function (param) {
+                              return Promise.resolve(undefined);
+                            }).catch(function (param) {
+                            Curry._1(setFetchingState, (function (state) {
+                                    return makeState(state, /* FetchError */2);
+                                  }));
+                            return Promise.resolve(undefined);
                           });
                       var newTodo2 = {
                         id: activityValue,

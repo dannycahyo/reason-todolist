@@ -65,14 +65,15 @@ let make = () => {
       fetch("http://localhost:3000/todos")
       |> then_(response => response##json())
       |> then_(jsonResponse => {
-           setFetchingState(_prevTodos =>
+           setFetchingState(state =>
              jsonResponse->Js.Array2.length > 0
-               ? LoadedTodos(jsonResponse) : EmptyTodos
+               ? LoadedTodos(jsonResponse)  // makeState(state, FetchSuccess)
+               : makeState(state, FetchEmpty)
            );
            Js.Promise.resolve();
          })
       |> catch(_ => {
-           setFetchingState(_ => ErrorFetchingTodos);
+           setFetchingState(state => makeState(state, FetchError));
            Js.Promise.resolve();
          })
       |> ignore
@@ -106,6 +107,14 @@ let make = () => {
         ),
       )
       |> then_(Fetch.Response.json)
+      |> then_(_ => {
+           //  setFetchingState(state => makeState(state, FetchSuccess))
+           Js.Promise.resolve()
+         })
+      |> catch(_ => {
+           setFetchingState(state => makeState(state, FetchError));
+           Js.Promise.resolve();
+         })
       |> ignore
     );
 
@@ -137,6 +146,7 @@ let make = () => {
         todo.id !== id
       );
     setFetchingState(_ => LoadedTodos(updatedTodos));
+    // setFetchingState(state => makeState(state, FetchSuccess))
   };
 
   let handleEditTodo = (~dataTodos, ~todoId, ~editedTitle, ~editedDescription) => {
